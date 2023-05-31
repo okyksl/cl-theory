@@ -7,10 +7,11 @@ class AverageMeter(object):
     Adapted from
     https://github.com/pytorch/examples/blob/ec10eee2d55379f0b9c87f4b36fcf8d0723f45fc/imagenet/main.py#L359-L380
     """
-    def __init__(self, name=None, fmt='.6f'):
-        fmtstr = f'{{val:{fmt}}} ({{avg:{fmt}}})'
+
+    def __init__(self, name=None, fmt=".6f"):
+        fmtstr = f"{{val:{fmt}}} ({{avg:{fmt}}})"
         if name is not None:
-            fmtstr = name + ' ' + fmtstr
+            fmtstr = name + " " + fmtstr
         self.fmtstr = fmtstr
         self.reset()
 
@@ -40,6 +41,7 @@ class AverageMeter(object):
 
 class TwoAugUnsupervisedDataset(torch.utils.data.Dataset):
     r"""Returns two augmentation and no labels."""
+
     def __init__(self, dataset, transform):
         self.dataset = dataset
         self.transform = transform
