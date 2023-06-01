@@ -10,8 +10,10 @@ def uniform_loss(x, t=2):
 
 
 def dot_loss(x, y, t=2):
-    return (x - y).norm(p=2, dim=1).pow(2).mean() - 0.5 * t * (
-        torch.pdist(x, p=2).pow(2).mean() + torch.pdist(y, p=2).pow(2).mean()
+    return (
+        -torch.tensordot(x, y, dims=([1], [1])).mean()
+        + t * 0.5 * torch.tensordot(x[::2, :], x[1::2, :], dims=([1], [1])).mean()
+        + t * 0.5 * torch.tensordot(y[::2, :], y[1::2, :], dims=([1], [1])).mean()
     )
 
 
