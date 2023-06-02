@@ -9,7 +9,7 @@ from torchsummary import summary
 
 from util import AverageMeter, TwoAugUnsupervisedDataset
 from encoder import SmallAlexNet
-from align_uniform import align_loss, uniform_loss, dot_loss
+from align_uniform import align_loss, uniform_loss, dot_loss, nce_loss
 
 
 def parse_option():
@@ -24,6 +24,7 @@ def parse_option():
         "--unif_w", type=float, default=1, help="Uniformity loss weight"
     )
     parser.add_argument("--dot_w", type=float, default=0, help="Dot loss weight")
+    parser.add_argument("--nce_w", type=float, default=0, help="NCE loss weight")
     parser.add_argument(
         "--align_alpha", type=float, default=2, help="alpha in alignment loss"
     )
@@ -94,7 +95,7 @@ def parse_option():
 
     opt.save_folder = os.path.join(
         opt.result_folder,
-        f"align{opt.align_w:g}alpha{opt.align_alpha:g}_unif{opt.unif_w:g}t{opt.unif_t:g}_dot{opt.dot_w:g}",
+        f"align{opt.align_w:g}alpha{opt.align_alpha:g}_unif{opt.unif_w:g}t{opt.unif_t:g}_dot{opt.dot_w:g}t{opt.dot_t:g}_nce{opt.nce_w:g}",
     )
     os.makedirs(opt.save_folder, exist_ok=True)
 
@@ -135,7 +136,7 @@ def main():
     opt = parse_option()
 
     print(
-        f"Optimize: {opt.align_w:g} * loss_align(alpha={opt.align_alpha:g}) + {opt.unif_w:g} * loss_uniform(t={opt.unif_t:g}) + {opt.dot_w:g} * loss_dot(t={opt.dot_t:g})"
+        f"Optimize: {opt.align_w:g} * loss_align(alpha={opt.align_alpha:g}) + {opt.unif_w:g} * loss_uniform(t={opt.unif_t:g}) + {opt.dot_w:g} * loss_dot(t={opt.dot_t:g}) + {opt.nce_w:g} * loss_div()"
     )
 
     torch.cuda.set_device(opt.gpus[0])
@@ -161,12 +162,14 @@ def main():
     align_meter = AverageMeter("align_loss")
     unif_meter = AverageMeter("uniform_loss")
     dot_meter = AverageMeter("dot_loss")
+    nce_meter = AverageMeter("nce_loss")
     loss_meter = AverageMeter("total_loss")
     it_time_meter = AverageMeter("iter_time")
     for epoch in range(opt.epochs):
         align_meter.reset()
         unif_meter.reset()
         dot_meter.reset()
+        nce_meter.reset()
         loss_meter.reset()
         it_time_meter.reset()
         t0 = time.time()
@@ -180,14 +183,17 @@ def main():
                 uniform_loss(x, t=opt.unif_t) + uniform_loss(y, t=opt.unif_t)
             ) / 2
             dot_loss_val = dot_loss(x, y, t=opt.dot_t)
+            nce_loss_val = nce_loss(x, y)
             loss = (
                 align_loss_val * opt.align_w
                 + unif_loss_val * opt.unif_w
                 + dot_loss_val * opt.dot_w
+                + nce_loss_val * opt.nce_w
             )
             align_meter.update(align_loss_val, x.shape[0])
             unif_meter.update(unif_loss_val)
             dot_meter.update(dot_loss_val)
+            nce_meter.update(nce_loss_val)
             loss_meter.update(loss, x.shape[0])
             loss.backward()
             optim.step()
@@ -195,7 +201,7 @@ def main():
             if ii % opt.log_interval == 0:
                 print(
                     f"Epoch {epoch}/{opt.epochs}\tIt {ii}/{len(loader)}\t"
-                    + f"{align_meter}\t{unif_meter}\t{dot_meter}\t{loss_meter}\t{it_time_meter}"
+                    + f"{align_meter}\t{unif_meter}\t{dot_meter}\t{nce_meter}\t{loss_meter}\t{it_time_meter}"
                 )
             t0 = time.time()
         scheduler.step()

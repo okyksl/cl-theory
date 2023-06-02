@@ -17,4 +17,12 @@ def dot_loss(x, y, t=2):
     )
 
 
-__all__ = ["align_loss", "uniform_loss", "dot_loss"]
+def nce_loss(x, y, t=2, unbias=False):
+    return (
+        -torch.tensordot(x, y, dims=([1], [1])).mean()
+        + torch.tensordot(x, x[1::2]).div(t).exp().mean()
+        / torch.tensordot(x, x[2::2]).div(t).exp().mean().detach()
+    )
+
+
+__all__ = ["align_loss", "uniform_loss", "dot_loss", "nce_loss"]
